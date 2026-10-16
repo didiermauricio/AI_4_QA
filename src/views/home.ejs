@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7 5.5h10A2.5 2.5 0 0 1 19.5 8v8A2.5 2.5 0 0 1 17 18.5H7A2.5 2.5 0 0 1 4.5 16V8A2.5 2.5 0 0 1 7 5.5Zm-1 3.5h12v5.5H6V9Zm3.5 0v5.5M13 9v5.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="brand-copy">
+            <h1>SportHub News</h1>
+            <span>Directorio de los principales periódicos deportivos</span>
+          </div>
+        </div>
+
+        <button class="reset-btn" type="button">Restablecer iniciales</button>
+      </header>
+
+      <section class="summary-grid">
+        <article class="summary-card summary-card-primary">
+          <div class="card-icon blue-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 2.5a9.5 9.5 0 1 1 0 19a9.5 9.5 0 0 1 0-19Zm0 4.5v5l4 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="stat-copy">
+            <div class="stat-value"><%= links.length %></div>
+            <div class="stat-label">Periódicos en lista</div>
+          </div>
+        </article>
+
+        <article class="summary-card">
+          <div class="card-icon dark-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5.5 18.5h13M6.5 15.5l2.7-4.8 4.5 2.8 3.8-7.3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="stat-copy">
+            <div class="stat-value">Estado</div>
+            <div class="stat-label">• Persistencia Local Activa</div>
+          </div>
+        </article>
+
+        <article class="summary-card">
+          <div class="card-icon purple-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7.5 6.5h9A2.5 2.5 0 0 1 19 9v6a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 5 15V9a2.5 2.5 0 0 1 2.5-2.5Zm2.5 3h5m-5 3h3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="stat-copy">
+            <div class="stat-value">Modo de pruebas QA</div>
+            <div class="stat-label">Validaciones BDD listas</div>
+          </div>
+        </article>
+      </section>
+
+      <main class="table-panel">
+        <div class="table-header-row">
+          <div class="table-heading">
+            <h2>Lista de Prensa Deportiva</h2>
+            <p>Gestiona y accede rápidamente a los sitios web de periódicos oficiales.</p>
+          </div>
+
+          <form class="search-box" method="GET" action="/">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="5.5" fill="none" stroke="currentColor" stroke-width="1.7"/>
+              <path d="M16 16l4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+            <input type="text" name="q" value="<%= query %>" placeholder="Buscar periódico..." />
+          </form>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Link / URL</th>
+                <th>Periódico</th>
+                <th>Portada / Logo</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% links.forEach((link) => { %>
+                <tr>
+                  <td class="link-cell">
+                    <a href="<%= link.url %>" target="_blank" rel="noreferrer"><%= link.url %></a>
+                  </td>
+                  <td class="publication-name"><%= link.name %></td>
+                  <td class="logo-cell">
+                    <span class="logo-badge"><%= link.logoText %></span>
+                  </td>
+                  <td class="action-cell">
+                    <div class="action-buttons">
+                      <a class="action-btn" href="<%= link.url %>" target="_blank" rel="noopener noreferrer" aria-label="Abrir <%= link.name %>">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M14 4.5h5.5v5.5M19.5 4.5l-9 9M7 6.5h7.5A2.5 2.5 0 0 1 17 9v7.5A2.5 2.5 0 0 1 14.5 19H6A2.5 2.5 0 0 1 3.5 16.5V8A2.5 2.5 0 0 1 6 5.5H9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </a>
+                      <form class="delete-form" method="POST" action="/links/<%= link.id %>/delete" onsubmit="return confirm('¿Eliminar este periódico de la lista?')">
+                        <input type="hidden" name="q" value="<%= query %>" />
+                        <button class="action-btn delete-btn" type="submit" aria-label="Eliminar <%= link.name %>" title="Eliminar <%= link.name %>">
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4.5 7h15m-9-3h3m-7.5 3 .8 12h10.4l.8-12M10 10.5v6m4-6v6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                          </svg>
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

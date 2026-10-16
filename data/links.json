@@ -1,0 +1,34 @@
+[
+  {
+    "id": 1,
+    "url": "https://www.marca.com",
+    "name": "Marca",
+    "period": "MA",
+    "logoText": "MA",
+    "order": 1
+  },
+  {
+    "id": 3,
+    "url": "https://www.mundodeportivo.com",
+    "name": "Mundo Deportivo",
+    "period": "MU",
+    "logoText": "MU",
+    "order": 3
+  },
+  {
+    "id": 4,
+    "url": "https://www.sport.es",
+    "name": "Sport",
+    "period": "SP",
+    "logoText": "SP",
+    "order": 4
+  },
+  {
+    "id": 5,
+    "url": "https://www.gazzetta.it",
+    "name": "La Gazzetta dello Sport",
+    "period": "LA",
+    "logoText": "LA",
+    "order": 5
+  }
+]
