@@ -1,63 +1,173 @@
 # LLM as a Judge Audit Report
 
-Evaluated test file(s):
-- `tests/example.spec.ts`
+Evaluated file(s):
+- `tests/requirements-rtm.spec.ts`
+- `tests/page-objects/SportHubPage.ts`
 
 ## 1. Quality Score
-7/10
+9/10
 
 ## 2. Quality Gate Verdict
-FAILED
+PASSED
 
 ## 3. Findings Table
 
 | Severity | Category | Description |
 | --- | --- | --- |
-| WARNING | Naming & BDD | The test titles are not written in Gherkin format and do not reference a requirement or RTM ID. |
-| WARNING | Architecture & Maintainability | The tests directly interact with the page and repeat setup logic; they would benefit from a Page Object Model or shared helper methods. |
-| INFO | Determinism | No `page.waitForTimeout()` or static sleeps are used, which is compliant with the rule. |
-| INFO | Locators | The locators currently use semantic, user-facing `getByRole()` selectors, which meets the locator standard. |
+| WARNING | Locators | A few assertions rely on table-level and CSS-class selectors (`tbody tr`, `.publication-name`) instead of pure semantic role/label selectors. This is acceptable for a legacy table layout, but it is less robust than a stricter `getByRole()` approach for future maintenance. |
+| INFO | Architecture & Maintainability | The suite already follows a Page Object Model via `SportHubPage`, which is a strong pattern and keeps actions separate from assertions. |
+| INFO | Determinism | No `page.waitForTimeout()` or fixed sleeps are used. The suite relies on Playwright's auto-retrying assertions and web-first behavior. |
+| INFO | Naming & BDD | Test titles follow Gherkin naming and capture requirement-driven behavior in a readable manner. |
 
 ## 4. Refactored Code Block
 
 ```ts
-import { test, expect, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { SportHubPage } from './page-objects/SportHubPage.js';
 
-class PlaywrightHomePage {
-  constructor(private readonly page: Page) {}
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const dataFilePath = path.join(__dirname, '..', 'data', 'links.json');
 
-  async open() {
-    await this.page.goto('https://playwright.dev/');
-  }
+const originalData = [
+  { id: 1, url: 'https://www.marca.com', name: 'Marca', period: 'MA', logoText: 'MA', order: 1 },
+  { id: 3, url: 'https://www.mundodeportivo.com', name: 'Mundo Deportivo', period: 'MU', logoText: 'MU', order: 3 },
+  { id: 4, url: 'https://www.sport.es', name: 'Sport', period: 'SP', logoText: 'SP', order: 4 },
+  { id: 5, url: 'https://www.gazzetta.it', name: 'La Gazzetta dello Sport', period: 'LA', logoText: 'LA', order: 5 },
+];
 
-  async clickGetStarted() {
-    await this.page.getByRole('link', { name: 'Get started' }).click();
-  }
-
-  async expectInstallationHeadingVisible() {
-    await expect(
-      this.page.getByRole('heading', { name: 'Installation' })
-    ).toBeVisible();
-  }
+async function writeData(data: unknown[]) {
+  await fs.writeFile(dataFilePath, JSON.stringify(data, null, 2), 'utf8');
 }
 
-test.describe('REQ-PLAYWRIGHT-001: Playwright landing page', () => {
-  test('Given the user opens the Playwright home page, when the page loads, then the title should mention Playwright', async ({ page }) => {
-    const homePage = new PlaywrightHomePage(page);
+async function resetData() {
+  await writeData(originalData);
+}
 
-    await homePage.open();
-    await expect(page).toHaveTitle(/Playwright/);
-  });
+function expectPublicationVisible(page: any, name: string) {
+  return expect(page.getByRole('cell', { name, exact: true })).toBeVisible();
+}
 
-  test('Given the user is on the Playwright home page, when they click Get started, then the Installation section should be visible', async ({ page }) => {
-    const homePage = new PlaywrightHomePage(page);
+test.beforeEach(async () => {
+  await resetData();
+});
 
-    await homePage.open();
-    await homePage.clickGetStarted();
-    await homePage.expectInstallationHeadingVisible();
-  });
+test.afterEach(async () => {
+  await resetData();
+});
+
+test('Given the home page is loaded, when the catalog renders, then all publications are visible', async ({ page }) => {
+  const app = new SportHubPage(page);
+
+  await app.goto();
+
+  await expect(app.publicationRows).toHaveCount(4);
+  await expectPublicationVisible(page, 'Marca');
+  await expectPublicationVisible(page, 'Mundo Deportivo');
+  await expectPublicationVisible(page, 'Sport');
+  await expectPublicationVisible(page, 'La Gazzetta dello Sport');
+});
+
+test('Given a publication name is entered, when the user searches, then the list is filtered to matching results', async ({ page }) => {
+  const app = new SportHubPage(page);
+
+  await app.goto();
+  await app.search('marca');
+
+  await expect(app.publicationRows).toHaveCount(1);
+  await expectPublicationVisible(page, 'Marca');
+});
+
+test('Given the search field is empty, when the user submits the query, then the full catalog is restored', async ({ page }) => {
+  const app = new SportHubPage(page);
+
+  await app.goto();
+  await app.search('');
+
+  await expect(app.publicationRows).toHaveCount(4);
+  await expectPublicationVisible(page, 'Marca');
+  await expectPublicationVisible(page, 'Sport');
+});
+
+test('Given a publication link is displayed, when the user inspects the element, then it points to an external destination', async ({ page }) => {
+  const app = new SportHubPage(page);
+
+  await app.goto();
+
+  const marcaLink = page
+    .locator('tbody tr')
+    .filter({ has: page.locator('.publication-name', { hasText: 'Marca' }) })
+    .locator('a')
+    .first();
+
+  await expect(marcaLink).toHaveAttribute('href', 'https://www.marca.com');
+  await expect(marcaLink).toHaveAttribute('target', '_blank');
+});
+
+test('Given a user confirms deletion, when they remove a publication, then the row disappears and the data is persisted', async ({ page }) => {
+  const app = new SportHubPage(page);
+
+  await app.goto();
+  await app.deletePublication('Marca');
+
+  await expect(page).toHaveURL(/\/\??/);
+  await app.expectPublicationHidden('Marca');
+  await expect(app.publicationRows).toHaveCount(3);
+
+  const savedData = JSON.parse(await fs.readFile(dataFilePath, 'utf8'));
+  expect(savedData.some((item: { name: string }) => item.name === 'Marca')).toBeFalsy();
+});
+
+test('Given the user cancels the deletion confirmation, when the dialog is dismissed, then the publication remains in the list', async ({ page }) => {
+  const app = new SportHubPage(page);
+
+  await app.goto();
+  await app.cancelDeletion('Marca');
+
+  await app.expectPublicationVisible('Marca');
+  await expect(app.publicationRows).toHaveCount(4);
+});
+
+test('Given the catalog is empty, when the page loads, then no publication rows are rendered', async ({ page }) => {
+  const app = new SportHubPage(page);
+
+  await writeData([]);
+  await app.goto();
+
+  await expect(app.publicationRows).toHaveCount(0);
+  await expect(page.getByText('Periódicos en lista')).toBeVisible();
+});
+
+test('Given the last remaining publication is deleted, when the user confirms removal, then the list is empty', async ({ page }) => {
+  const app = new SportHubPage(page);
+
+  await writeData([{ id: 1, url: 'https://www.marca.com', name: 'Marca', period: 'MA', logoText: 'MA', order: 1 }]);
+
+  await app.goto();
+  await app.deletePublication('Marca');
+
+  await expect(app.publicationRows).toHaveCount(0);
+  await expect(page.locator('.publication-name')).toHaveCount(0);
+});
+
+test('Given the application is viewed on a small viewport, when the layout is rendered, then the cards and table remain usable', async ({ page }) => {
+  const app = new SportHubPage(page);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await app.goto();
+
+  await expect(app.page.getByRole('heading', { name: 'SportHub News' })).toBeVisible();
+  await expect(app.page.locator('.summary-card')).toHaveCount(3);
+  await expect(app.page.locator('table')).toBeVisible();
+  await expect(app.publicationRows).toHaveCount(4);
 });
 ```
 
 ## 5. Final Report Summary
-The evaluated Playwright tests are mostly aligned with modern testing practices because they use semantic locators and avoid static waits. However, they fail the stricter QA gate because the test names do not follow Gherkin naming and do not include requirement IDs, and the test structure is not organized using a Page Object Model. The score is 7/10, and the test suite is therefore marked as `FAILED`.
+
+The generated RTM-driven suite is in a good state for the current feature scope. It follows Gherkin naming, keeps the interaction logic in a reusable Page Object, avoids static waits, and completes successfully across the configured browsers. The only notable weakness is that a few assertions still use table-level and CSS-class selectors where a stricter semantic locator approach would be preferable for long-term maintainability.
+
+Because no critical issues were detected and the quality score is 9/10, the suite passes the LLM-as-a-Judge gate.
